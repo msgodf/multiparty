@@ -36,8 +36,6 @@ var CR = 13;
 var SPACE = 32;
 var HYPHEN = 45;
 var COLON = 58;
-var A = 97;
-var Z = 122;
 
 var CONTENT_TYPE_RE = /^multipart\/(?:form-data|related)(?:;|$)/i;
 var CONTENT_TYPE_PARAM_RE = /;\s*([^=]+)=(?:"([^"]+)"|([^;]+))/gi;
@@ -237,7 +235,6 @@ Form.prototype._write = function(buffer, encoding, cb) {
   var boundaryEnd = boundaryLength - 1;
   var bufferLength = buffer.length;
   var c;
-  var cl;
 
   for (i = 0; i < len; i++) {
     c = buffer[i];
@@ -293,9 +290,8 @@ Form.prototype._write = function(buffer, encoding, cb) {
           break;
         }
 
-        cl = lower(c);
-        if (cl < A || cl > Z) {
-          self.handleError(createError(400, 'Expected alphabetic character, received ' + c));
+        if(!isValidHeaderFieldNameChar(c)) {
+          self.handleError(createError(400, 'Disallowed character in header field, received ' + c));
           return;
         }
         break;
@@ -807,8 +803,16 @@ function parseFilename(headerValue) {
   return filename.substr(filename.lastIndexOf('\\') + 1);
 }
 
-function lower(c) {
-  return c | 0x20;
+// Check whether c is a valid character in a header field name.
+// RFC 7230 states:
+//     header-field   = field-name ":" OWS field-value OWS
+//     field-name     = token
+//     token          = 1*tchar
+//     tchar          = "!" / "#" / "$" / "%" / "&" / "'" / "*"
+//                    / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"
+//                    / DIGIT / ALPHA
+function isValidHeaderFieldNameChar(c) {
+  return /[\w!#$%&\*+-.^_`|~]/.test(c);
 }
 
 function createError(status, message) {
