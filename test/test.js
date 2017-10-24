@@ -759,6 +759,41 @@ var standaloneTests = [
     },
   },
   {
+    name: "Allow RFC7230 header field name characters",
+    fn: function(cb) {
+      var server = http.createServer(function(req, res) {
+        var form = new multiparty.Form();
+        var endCalled = false;
+        form.on('part', function(part) {
+          part.on('end', function() {
+            endCalled = true;
+          });
+          part.resume();
+        });
+        form.on('close', function() {
+          assert.ok(endCalled);
+          res.end();
+        });
+        form.parse(req);
+      });
+      server.listen(function() {
+        var url = 'http://localhost:' + server.address().port + '/'
+        var req = superagent.post(url)
+        req.set('Content-Type', 'multipart/form-data; boundary=--foo')
+        req.write('----foo\r\n');
+        req.write('Content-Type: text/plain\r\n');
+        req.write('!#$%&\*+-.^_ABCDabcd123: value\r\n');
+        req.write('\r\n');
+        req.write('hi1\r\n');
+        req.write('\r\n');
+        req.write('----foo--\r\n');
+        req.end(function(err, resp) {
+          server.close(cb);
+        });
+      });
+    },
+  },
+  {
     name: "max fields",
     fn: function(cb) {
       var server = http.createServer(function(req, res) {
